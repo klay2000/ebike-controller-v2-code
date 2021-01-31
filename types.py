@@ -5,6 +5,9 @@ class Datatype:
 
     length = 0
 
+    def toBytes(self, data):
+        return 0
+
     def convert(self, data):
         return 0
 
@@ -12,6 +15,11 @@ class Datatype:
 class Uint8(Datatype):
 
     length = 1
+
+    def toBytes(self, data):
+        super().toBytes(data)
+
+        return data.to_bytes(1, 'little')
 
     def convert(self, data):
         super().convert(data)
@@ -23,6 +31,13 @@ class Uint16(Datatype):
 
     length = 2
 
+    def toBytes(self, data):
+        super().toBytes(data)
+
+        print(data.to_bytes(2, 'little'))
+
+        return data.to_bytes(2, 'little')
+
     def convert(self, data):
         super().convert(data)
 
@@ -33,6 +48,11 @@ class Float32(Datatype):
 
     length = 4
 
+    def toBytes(self, data):
+        super().toBytes(data);
+
+        return struct.pack('f', data)
+
     def convert(self, data):
         super().convert(data)
 
@@ -42,6 +62,13 @@ class Float32(Datatype):
 class String20(Datatype):
 
     length = 20
+
+    def toBytes(self, data):
+        super().toBytes(data)
+
+        bytes = data.encode(encodeing='ascii', errors='replace')
+
+        return bytes
 
     def convert(self, data):
         super().convert(data)
@@ -59,6 +86,11 @@ class String20(Datatype):
 class Boolean(Datatype):
 
     length = 1
+
+    def toBytes(self, data):
+        super().toBytes(data)
+
+        return data.toBytes(1, 'little')
 
     def convert(self, data):
         super().convert(data)

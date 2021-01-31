@@ -14,7 +14,7 @@ class Channel:
         return self.datatype.convert(self.i2c.readfrom_mem(self.dev_id, self.address, self.datatype.length))
 
     def write_value(self, data):
-        self.i2c.writeto_mem(self.dev_id, self.address, data)
+        self.i2c.writeto_mem(self.dev_id, self.address, self.datatype.toBytes(data))
 
 
 class Device:
