@@ -24,6 +24,9 @@ class Uint8(Datatype):
     def convert(self, data):
         super().convert(data)
 
+        if type(data) is bytes:
+            data = struct.unpack('>H', b'\x00' + data)[0]
+
         return data
 
 
@@ -33,8 +36,6 @@ class Uint16(Datatype):
 
     def toBytes(self, data):
         super().toBytes(data)
-
-        print(data.to_bytes(2, 'little'))
 
         return data.to_bytes(2, 'little')
 
@@ -66,7 +67,10 @@ class String20(Datatype):
     def toBytes(self, data):
         super().toBytes(data)
 
-        bytes = data.encode(encodeing='ascii', errors='replace')
+        bytes = data.encode('ascii', 'replace')
+
+        while len(bytes) < 20:
+            bytes += '\x00'
 
         return bytes
 
@@ -90,10 +94,13 @@ class Boolean(Datatype):
     def toBytes(self, data):
         super().toBytes(data)
 
-        return data.toBytes(1, 'little')
+        return int(data).to_bytes(1, 'little')
 
     def convert(self, data):
         super().convert(data)
+
+        if type(data) is bytes:
+            data = struct.unpack('>H', b'\x00' + data)[0]
 
         return not(data == 0)
 
