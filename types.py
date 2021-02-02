@@ -57,7 +57,7 @@ class Float32(Datatype):
     def convert(self, data):
         super().convert(data)
 
-        return struct.unpack('<f', data)
+        return struct.unpack('<f', data)[0]
 
 
 class String20(Datatype):
