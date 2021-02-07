@@ -12,3 +12,13 @@ if __name__ == '__main__':
 
     for i in device_ids:
         devices.append(Device(i2c, i))
+
+
+def loadData():
+
+
+def readDevices():
+
+
+def checkDevices():
+
