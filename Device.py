@@ -12,7 +12,12 @@ class Channel:
 
     @classmethod
     def from_dict(cls, dev_id, json_dict, i2c):
-        return Channel(dev_id, json_dict["address"], json_dict["writable"], json_dict["type"], json_dict["label"], i2c)
+        return Channel(dev_id,
+                       json_dict["address"],
+                       json_dict["writable"],
+                       type_from_id(json_dict["type"])(),
+                       json_dict["label"],
+                       i2c)
 
     def read_value(self):
         return self.datatype.convert(self.i2c.readfrom_mem(self.dev_id, self.address, self.datatype.length))
@@ -30,7 +35,7 @@ class Channel:
 
 
 class Device:
-    def __init__(self, i2c, dev_id, scan = True):
+    def __init__(self, i2c, dev_id, scan=True):
         self.i2c = i2c
         self.dev_id = dev_id
         self.name = ""
@@ -44,7 +49,8 @@ class Device:
         dev = Device(i2c, json_dict["id"], scan=False)
         dev.name = json_dict["name"]
         for i in json_dict["channels"]:
-            dev.channels.append(Channel.from_dict(i))
+            dev.channels.append(Channel.from_dict(dev.dev_id, i, i2c))
+        return dev
 
     def scan_channels(self):
         channels_len = Uint8().convert(self.i2c.readfrom_mem(self.dev_id, 0x02, 1)[0])
