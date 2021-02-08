@@ -14,11 +14,11 @@ if __name__ == '__main__':
         devices.append(Device(i2c, i))
 
 
-def loadData():
-
-
-def readDevices():
-
-
-def checkDevices():
-
+# def loadData():
+#
+#
+# def readDevices():
+#
+#
+# def checkDevices():
+#
