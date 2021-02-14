@@ -3,6 +3,8 @@ import struct
 
 class Datatype:
 
+    id = -1
+
     length = 0
 
     def toBytes(self, data):
@@ -13,6 +15,8 @@ class Datatype:
 
 
 class Uint8(Datatype):
+
+    id = 0
 
     length = 1
 
@@ -32,6 +36,8 @@ class Uint8(Datatype):
 
 class Uint16(Datatype):
 
+    id = 1
+
     length = 2
 
     def toBytes(self, data):
@@ -47,6 +53,8 @@ class Uint16(Datatype):
 
 class Float32(Datatype):
 
+    id = 2
+
     length = 4
 
     def toBytes(self, data):
@@ -61,6 +69,8 @@ class Float32(Datatype):
 
 
 class String20(Datatype):
+
+    id = 3
 
     length = 20
 
@@ -88,6 +98,8 @@ class String20(Datatype):
 
 
 class Boolean(Datatype):
+
+    id = 4
 
     length = 1
 
