@@ -1,5 +1,6 @@
 from machine import I2C, Pin
 from Device import Device
+import Bluetooth
 from types import Boolean
 import ujson
 
@@ -101,4 +102,6 @@ if __name__ == '__main__':
 
     devices = data[0]
     connections = data[1]
+
+    Bluetooth.demo()
 
