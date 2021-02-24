@@ -8,11 +8,12 @@ I2C_FREQ = 1000
 DATA_FILE_NAME = 'data.json'
 SYNC_TIME = 5000
 
+
 def get_saved_data(i2c_obj):
     f = open(DATA_FILE_NAME, '+')
     data = f.read()
     if len(data) == 0:
-        data = ujson.dumps({"connections": [], "devices": []})
+        data = ujson.dumps({"devices": []})
         f.write(data)
         f.flush()
 
@@ -21,17 +22,14 @@ def get_saved_data(i2c_obj):
     data_dict = ujson.loads(data)
 
     read_devices = []
-    read_connections = []
 
     for i in data_dict["devices"]:
         read_devices.append(Device.from_dict(i2c_obj, i))
 
-    # TODO: connection parsing
-
-    return read_devices, read_connections
+    return read_devices
 
 
-def write_new_data(new_devices, new_connections):
+def write_new_data(new_devices):
     # convert data
     device_dicts = []
 
@@ -40,9 +38,7 @@ def write_new_data(new_devices, new_connections):
     for i in new_devices:
         device_dicts.append(i.to_dict())
 
-    # TODO: connection parsing
-
-    data = {"connections": connection_dicts, "devices": device_dicts}
+    data = {"devices": device_dicts}
 
     # clear file
     open(DATA_FILE_NAME, "w").close()
@@ -56,7 +52,6 @@ def write_new_data(new_devices, new_connections):
 
 # Returns an available id on success, -1 on fail.
 def prepare_to_sync_device(i2c, devices):
-
     # Fail if there is no more space for devices, this will be 111 because scan only reads to 119, and 8 reserved device
     # addresses makes 120, odds are nobody's crazy enough to hit this though ;).
     if len(devices) > 111:
@@ -95,13 +90,33 @@ def sync_device(i2c, id_to_use):
 
     return Device(i2c, id_to_use)
 
+
+# Returns a reference to a channel from a tuple of (dev_id,channel_addr), returns None if none exists.
+def get_channel_from_id_tuple(channel, devices):
+    for i in devices:
+        if i.dev_id == channel[0]:
+            for j in i.channels:
+                if j.address == channel[1]:
+                    return j
+    return None
+
+
+# Updates values for each channel of each device
+def update_channels(devices):
+    for i in devices:
+        for j in i.channels:
+            if j.source_channel[0] != -1:
+                if j.source_reference is None:
+                    j.source_reference = get_channel_from_id_tuple(j.source_channel, devices)
+
+                j.write_value(j.source_reference.read_value())
+
+
 if __name__ == '__main__':
     i2c = I2C(sda=Pin(21), scl=Pin(22), freq=I2C_FREQ)
 
-    data = get_saved_data(i2c)
+    devices = get_saved_data(i2c)
 
-    devices = data[0]
-    connections = data[1]
-
-    Bluetooth.demo()
+    # while True:
+        # update_channels(devices)
 

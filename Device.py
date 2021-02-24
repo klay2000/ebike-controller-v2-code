@@ -2,13 +2,15 @@ from types import *
 
 
 class Channel:
-    def __init__(self, dev_id, address, writable, datatype, label, i2c):
+    def __init__(self, dev_id, address, writable, datatype, label, i2c, source_channel=(-1, -1)):
         self.dev_id = dev_id
         self.address = address
         self.writable = writable
         self.datatype = datatype
         self.label = label
         self.i2c = i2c
+        self.source_channel = source_channel    # actually a tuple with (deviceID, ChannelAddr)
+        self.source_reference = None            # a reference to the source channel
 
     @classmethod
     def from_dict(cls, dev_id, json_dict, i2c):
@@ -17,7 +19,8 @@ class Channel:
                        json_dict["writable"],
                        type_from_id(json_dict["type"])(),
                        json_dict["label"],
-                       i2c)
+                       i2c,
+                       source_channel=json_dict["sourceChannel"])
 
     def read_value(self):
         return self.datatype.convert(self.i2c.readfrom_mem(self.dev_id, self.address, self.datatype.length))
@@ -25,12 +28,16 @@ class Channel:
     def write_value(self, data):
         self.i2c.writeto_mem(self.dev_id, self.address, self.datatype.toBytes(data))
 
+    def get_source(self):
+        return self.source_channel
+
     def to_dict(self):
         return {
             "address": self.address,
             "writable": self.writable,
             "type": self.datatype.id,
-            "label": self.label
+            "label": self.label,
+            "sourceChannel": self.source_channel
         }
 
 
