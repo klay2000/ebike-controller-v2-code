@@ -1,14 +1,19 @@
 from types import *
+from time import sleep_ms
+from micropython import const
 
+_DEVICE_REST_TIME = const(500)
 
 class Channel:
-    def __init__(self, dev_id, address, writable, datatype, label, i2c):
+    def __init__(self, dev_id, address, writable, datatype, label, i2c, source_channel=(-1, -1)):
         self.dev_id = dev_id
         self.address = address
         self.writable = writable
         self.datatype = datatype
         self.label = label
         self.i2c = i2c
+        self.source_channel = source_channel    # actually a tuple with (deviceID, ChannelAddr)
+        self.source_reference = None            # a reference to the source channel
 
     @classmethod
     def from_dict(cls, dev_id, json_dict, i2c):
@@ -17,7 +22,8 @@ class Channel:
                        json_dict["writable"],
                        type_from_id(json_dict["type"])(),
                        json_dict["label"],
-                       i2c)
+                       i2c,
+                       source_channel=json_dict["sourceChannel"])
 
     def read_value(self):
         return self.datatype.convert(self.i2c.readfrom_mem(self.dev_id, self.address, self.datatype.length))
@@ -25,12 +31,16 @@ class Channel:
     def write_value(self, data):
         self.i2c.writeto_mem(self.dev_id, self.address, self.datatype.toBytes(data))
 
+    def get_source(self):
+        return self.source_channel
+
     def to_dict(self):
         return {
             "address": self.address,
             "writable": self.writable,
             "type": self.datatype.id,
-            "label": self.label
+            "label": self.label,
+            "sourceChannel": self.source_channel
         }
 
 
@@ -42,6 +52,7 @@ class Device:
         self.channels = []
         if scan:
             self.name = String20().convert(self.i2c.readfrom_mem(self.dev_id, 0x01, String20().length))
+            sleep_ms(_DEVICE_REST_TIME)
             self.scan_channels()
 
     @classmethod
@@ -54,8 +65,11 @@ class Device:
 
     def scan_channels(self):
         channels_len = Uint8().convert(self.i2c.readfrom_mem(self.dev_id, 0x02, 1)[0])
+        sleep_ms(_DEVICE_REST_TIME)
         writable = self.i2c.readfrom_mem(self.dev_id, 0x04, channels_len * Boolean().length)
+        sleep_ms(_DEVICE_REST_TIME)
         types = self.i2c.readfrom_mem(self.dev_id, 0x05, channels_len * Uint8().length)
+        sleep_ms(_DEVICE_REST_TIME)
         labels = self.i2c.readfrom_mem(self.dev_id, 0x03, channels_len * String20().length)
 
         for i in range(0, channels_len):
