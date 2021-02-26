@@ -3,12 +3,14 @@ from Device import Device
 import utime
 import GATTController
 import ubluetooth
-from types import Boolean
+from types import Boolean, Uint8
 import ujson
 from micropython import const
 
 I2C_FREQ = const(1000)
 DATA_FILE_NAME = 'data.json'
+
+UPDATE_DELAY = const(100)
 
 LOG_LEVEL = -1  # -1 is debug, 0 is logging, 1 is release, 2 is error only.
 
@@ -58,7 +60,6 @@ def get_saved_data():
     log("loaded old device data", log_level=0)
 
     return read_devices
-
 
 def write_new_data():
     # convert data
@@ -166,11 +167,12 @@ def update_channels():
                 if j.source_reference is None:
                     j.source_reference = get_channel_from_id_tuple(j.source_channel)
 
-                j.write_value(j.source_reference.read_value())
+                if j.source_reference is not None:
+                    j.write_value(j.source_reference.read_value())
 
 
 # Callback for GATT write events
-def gatt_callback(event, data):
+def gatt_callback(event, data, _ble):
     global system_state
 
     log("GATT callback invoked, hold on tight", log_level=0)
@@ -181,9 +183,38 @@ def gatt_callback(event, data):
 
         if data is True and system_state == STATE_RUNNING:
             try_to_sync_device()
-
-        if data is False and system_state == STATE_SYNCING:
+        elif data is False and system_state == STATE_SYNCING:
             system_state = STATE_RUNNING
+
+    elif event == GATTController.EVENT_REQUEST_DEVICES:
+        _ble.update_devices(devices)
+
+    elif event == GATTController.EVENT_CONNECTION_MODIFY:
+        op = Uint8().convert(data[0])
+        src = (Uint8().convert(data[1]), Uint8().convert(data[2]))
+        dest = (Uint8().convert(data[3]), Uint8().convert(data[4]))
+
+        if op == 0xff:
+            get_channel_from_id_tuple(dest).source_channel = src
+        elif op == 0x00:
+            get_channel_from_id_tuple(dest).source_channel = (-1, -1)
+
+        write_new_data()
+
+    elif event == GATTController.EVENT_DEVICE_MODIFY:
+        op = Uint8().convert(data[0])
+        dev = Uint8().convert(data[1])
+        dev_type = Uint8().convert(data[2])
+
+        if op == 0x00:
+            for i in devices:
+                if i.dev_id == dev:
+                    devices.remove(i)
+                    break
+
+        # TODO: add soft devices
+
+        write_new_data()
 
 
 if __name__ == '__main__':
@@ -201,6 +232,10 @@ if __name__ == '__main__':
     log("Startup successful in " + str(utime.ticks_ms() - start_time) + "ms, welcome!", log_level=1)
     system_state = STATE_RUNNING
 
-    # while True:
-        # update_channels(devices)
+    while True:
+        try:
+            update_channels()
+        except OSError as exp:
+            log("updating channels failed: " + str(exp), log_level=2)
+        utime.sleep_ms(UPDATE_DELAY)
 
