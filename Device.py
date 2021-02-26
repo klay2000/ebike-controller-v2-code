@@ -1,5 +1,8 @@
 from types import *
+from time import sleep_ms
+from micropython import const
 
+_DEVICE_REST_TIME = const(500)
 
 class Channel:
     def __init__(self, dev_id, address, writable, datatype, label, i2c, source_channel=(-1, -1)):
@@ -49,6 +52,7 @@ class Device:
         self.channels = []
         if scan:
             self.name = String20().convert(self.i2c.readfrom_mem(self.dev_id, 0x01, String20().length))
+            sleep_ms(_DEVICE_REST_TIME)
             self.scan_channels()
 
     @classmethod
@@ -61,8 +65,11 @@ class Device:
 
     def scan_channels(self):
         channels_len = Uint8().convert(self.i2c.readfrom_mem(self.dev_id, 0x02, 1)[0])
+        sleep_ms(_DEVICE_REST_TIME)
         writable = self.i2c.readfrom_mem(self.dev_id, 0x04, channels_len * Boolean().length)
+        sleep_ms(_DEVICE_REST_TIME)
         types = self.i2c.readfrom_mem(self.dev_id, 0x05, channels_len * Uint8().length)
+        sleep_ms(_DEVICE_REST_TIME)
         labels = self.i2c.readfrom_mem(self.dev_id, 0x03, channels_len * String20().length)
 
         for i in range(0, channels_len):
