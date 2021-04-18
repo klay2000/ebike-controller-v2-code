@@ -61,6 +61,7 @@ def get_saved_data():
 
     return read_devices
 
+
 def write_new_data():
     # convert data
     device_dicts = []
@@ -150,7 +151,7 @@ def complete_device_sync(id_to_use):
 
 
 # Returns a reference to a channel from a tuple of (dev_id,channel_addr), returns None if none exists.
-def get_channel_from_id_tuple(channel):
+def get_channel_from_coordinates(channel):
     for i in devices:
         if i.dev_id == channel[0]:
             for j in i.channels:
@@ -162,13 +163,23 @@ def get_channel_from_id_tuple(channel):
 # Updates values for each channel of each device
 def update_channels():
     for i in devices:
-        for j in i.channels:
-            if j.source_channel[0] != -1:
-                if j.source_reference is None:
-                    j.source_reference = get_channel_from_id_tuple(j.source_channel)
+        try:
+            for j in i.channels:
+                if j.source_channel[0] != -1:
+                    if j.source_reference is None:
+                        j.source_reference = get_channel_from_coordinates(j.source_channel)
 
-                if j.source_reference is not None:
-                    j.write_value(j.source_reference.read_value())
+                    if j.source_reference is not None:
+                        j.write_value(j.source_reference.read_value())
+
+        except OSError as exp:
+            log("updating a channel failed: " + str(exp), log_level=2)
+
+    channels = []
+    for i in gatt_controller.get_channel_coordinates_to_send():
+        channels.append(get_channel_from_coordinates(i))
+
+    gatt_controller.send_channel_data(channels)
 
 
 # Callback for GATT write events
@@ -189,15 +200,23 @@ def gatt_callback(event, data, _ble):
     elif event == GATTController.EVENT_REQUEST_DEVICES:
         _ble.update_devices(devices)
 
+    elif event == GATTController.EVENT_REQUEST_DATA:
+        channels = []
+
+        for i in _ble.get_channel_coordinates_to_send():
+            channels.append(get_channel_from_coordinates(i))
+
+        _ble.send_channel_data(channels)
+
     elif event == GATTController.EVENT_CONNECTION_MODIFY:
         op = Uint8().convert(data[0])
         src = (Uint8().convert(data[1]), Uint8().convert(data[2]))
         dest = (Uint8().convert(data[3]), Uint8().convert(data[4]))
 
         if op == 0xff:
-            get_channel_from_id_tuple(dest).source_channel = src
+            get_channel_from_coordinates(dest).source_channel = src
         elif op == 0x00:
-            get_channel_from_id_tuple(dest).source_channel = (-1, -1)
+            get_channel_from_coordinates(dest).source_channel = (-1, -1)
 
         write_new_data()
 
@@ -216,6 +235,8 @@ def gatt_callback(event, data, _ble):
 
         write_new_data()
 
+    elif event == GATTController.EVENT_CHANGE_SENT_DATA:
+        _ble.update_channels_to_send(data.decode())
 
 if __name__ == '__main__':
     start_time = utime.ticks_ms()
@@ -233,9 +254,6 @@ if __name__ == '__main__':
     system_state = STATE_RUNNING
 
     while True:
-        try:
-            update_channels()
-        except OSError as exp:
-            log("updating channels failed: " + str(exp), log_level=2)
+        update_channels()
         utime.sleep_ms(UPDATE_DELAY)
 

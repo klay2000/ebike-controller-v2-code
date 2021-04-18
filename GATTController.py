@@ -9,10 +9,13 @@ EVENT_SYNC = const(0)
 EVENT_CONNECTION_MODIFY = const(1)
 EVENT_DEVICE_MODIFY = const(2)
 EVENT_REQUEST_DEVICES = const(3)
+EVENT_CHANGE_SENT_DATA = const(4)
+EVENT_REQUEST_DATA = const(5)
 
 _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
 _IRQ_GATTS_WRITE = const(3)
+_IRQ_GATTS_READ_REQUEST = const(4)
 
 _FLAG_READ = const(0x0002)
 _FLAG_WRITE = const(0x0008)
@@ -29,11 +32,11 @@ _SYNC_MODE = (
 )
 _CHANNEL_IDS = (
     bluetooth.UUID("53e5e22d-61b6-4da2-84ab-048454c8263e"),
-    _FLAG_READ | _FLAG_WRITE,
+    _FLAG_WRITE,
 )
 _DATA = (
     bluetooth.UUID("7e5b558e-c8fd-4a94-be1d-e133a465f3cd"),
-    _FLAG_READ | _FLAG_NOTIFY,
+    _FLAG_READ,
 )
 _MODIFY_CONNECTIONS = (
     bluetooth.UUID("ab217364-5a41-4bb8-b8b7-9534f07ce560"),
@@ -69,6 +72,7 @@ class GATTController:
         self._payload = advertising_payload(name=name, appearance=_ADV_APPEARANCE_GENERIC_CYCLING)
         self._advertise()   # start advertising
         self._connection = None
+        self._channels_to_send = []
 
     def irq(self, handler):
         self._handler = handler
@@ -94,10 +98,11 @@ class GATTController:
                 elif value_handle == self._modify_dev_handle:
                     self._handler(EVENT_DEVICE_MODIFY, self._ble.gatts_read(self._modify_dev_handle), self)
                     self._handler(EVENT_REQUEST_DEVICES, None, self)
+                elif value_handle == self._channel_ids_handle:
+                    self._handler(EVENT_CHANGE_SENT_DATA, self._ble.gatts_read(self._channel_ids_handle), self)
 
-    def write_data(self, data):
-        if self._connection is not None:
-            self._ble.gatts_notify(self._connection, self._data_handle, data)
+    def _write_data(self, data):
+        self._ble.gatts_write(self._data_handle, data)
 
     def update_devices(self, devices):
         # convert data
@@ -109,6 +114,27 @@ class GATTController:
         data = {"devices": device_dicts}
 
         self._ble.gatts_write(self._channels_handle, ujson.dumps(data))
+
+    def send_channel_data(self, channels):
+        data_dicts = []
+
+        for i in channels:
+            if i is not None:
+                c_dict = {"id": i.dev_id, "cnum": i.address, "type": i.datatype.id, "value": i.read_value()}
+                data_dicts.append(c_dict)
+
+        self._write_data(ujson.dumps(data_dicts))
+
+    def update_channels_to_send(self, s):
+        dicts = ujson.loads(s)
+        self._channels_to_send = []
+        for i in dicts:
+            dev_id = i['id']
+            channel_id = i['cnum']
+            self._channels_to_send.append((dev_id, channel_id))
+
+    def get_channel_coordinates_to_send(self):
+        return self._channels_to_send
 
     def close(self):
         self._ble.gap_disconnect(self._connection)
